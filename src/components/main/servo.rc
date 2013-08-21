@@ -109,10 +109,9 @@ fn start(argc: int, argv: **u8, crate_map: *u8) -> int {
 
 fn run(opts: Opts) {
     let (shutdown_port, shutdown_chan) = comm::stream();
-    let (profiler_port, profiler_chan) = comm::stream();
-    let (compositor_port, compositor_chan) = comm::stream();
+    let (profiler_port, profiler_chan) = special_stream!(ProfilerChan);
+    let (compositor_port, compositor_chan) = special_stream!(CompositorChan);
 
-    let profiler_chan = ProfilerChan::new(profiler_chan);
     Profiler::create(profiler_port);
     do opts.profiler_period.map |&period| {
         let profiler_chan = profiler_chan.clone();
@@ -125,7 +124,7 @@ fn run(opts: Opts) {
             }
         }
     };
-    let compositor_chan = CompositorChan::new(compositor_chan);
+
     let profiler_chan_clone = profiler_chan.clone();
 
     let opts_clone = opts.clone();
@@ -137,7 +136,6 @@ fn run(opts: Opts) {
         let opts = &opts_clone.clone();
 
         // Create a Servo instance.
-
         let resource_task = ResourceTask();
         let image_cache_task = ImageCacheTask(resource_task.clone());
         let constellation_chan = Constellation::start(compositor_chan.clone(),
