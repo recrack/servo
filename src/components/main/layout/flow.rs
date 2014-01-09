@@ -45,6 +45,8 @@ use std::cast;
 use std::cell::RefCell;
 use style::ComputedValues;
 use style::computed_values::text_align;
+use style::computed_values::display;
+use style::computed_values::{list_style_position, list_style_type, list_style_image};
 
 /// Virtual methods that make up a float context.
 ///
@@ -318,6 +320,62 @@ impl FlowFlags {
     }
 }
 
+/// FIXME(aydin.kim): We have to change list_style_type to be in the form of bitfield if it is possible to reduce resources.
+pub struct ListData {
+    list_style_type: list_style_type::T,
+    list_style_position: list_style_position::T,
+    list_style_image: list_style_image::T,
+
+    //we need set_done flag because we don'know the flow kind. we cannot check this is checked or not in previous step.
+    seq_set_done : bool,
+    is_ordered : bool,
+    sequence : int,
+}
+
+impl ListData {
+    #[inline]
+    pub fn new(style: &ComputedValues) -> Option<ListData> {
+        if style.Box.display == display::list_item {
+            let mut data = ListData {
+                //This css values have higher priority than html type attr below.
+                list_style_type : list_style_type::disc,
+                list_style_position : list_style_position::outside,
+                list_style_image : list_style_image::none,
+
+                seq_set_done: false,
+                is_ordered: false,
+                sequence : 1,
+            };
+
+            data.set_override_list_type(style);
+            data.set_override_list_position(style);
+            data.set_override_list_image(style);
+
+            Some(data)
+        }
+        else {
+            None
+        }
+    }
+    pub fn set_override_list_type(&mut self, style: &ComputedValues) {
+        self.list_style_type = style.List.list_style_type;
+    }
+    pub fn set_override_list_position(&mut self, style: &ComputedValues) {
+        self.list_style_position = style.List.list_style_position;
+    }
+    pub fn set_override_list_image(&mut self, style: &ComputedValues) {
+        self.list_style_image = style.List.list_style_image;
+    }
+    pub fn from_list_tag(&mut self, value: int, is_ordered: bool) {
+        self.is_ordered = is_ordered;
+        self.sequence = value;
+        self.seq_set_done = true;
+    }
+    pub fn sequenced(&mut self) -> bool {
+        self.seq_set_done
+    }
+}
+
 /// Data common to all flows.
 pub struct BaseFlow {
     restyle_damage: RestyleDamage,
@@ -349,6 +407,7 @@ pub struct BaseFlow {
 
     /// Various flags for flows, tightly packed to save space.
     flags: FlowFlags,
+    listdata: Option<ListData>,
 }
 
 pub struct BoxIterator {
@@ -389,6 +448,7 @@ impl BaseFlow {
             abs_position: Point2D(Au::new(0), Au::new(0)),
 
             flags: FlowFlags::new(style.get()),
+            listdata: ListData::new(style.get()),
         }
     }
 
@@ -527,8 +587,15 @@ impl<'a> MutableFlowUtils for &'a mut Flow {
                           list: &RefCell<DisplayList<E>>)
                           -> bool {
         debug!("Flow: building display list for f{}", base(self).id);
+
         match self.class() {
-            BlockFlowClass => self.as_block().build_display_list_block(builder, dirty, list),
+            BlockFlowClass => {
+                if self.as_block().float.is_some() {
+                    self.as_block().build_display_list_float(builder, dirty, list)
+                } else {
+                    self.as_block().build_display_list_block(builder, dirty, list)
+                }
+            }
             InlineFlowClass => self.as_inline().build_display_list_inline(builder, dirty, list),
         };
 
@@ -538,7 +605,7 @@ impl<'a> MutableFlowUtils for &'a mut Flow {
 
         let child_list = ~RefCell::new(DisplayList::new());
         for kid in child_iter(self) {
-            kid.build_display_list(builder,dirty,child_list);
+            kid.build_display_list(builder, dirty, child_list);
         }
 
         let mut child_list = Some(child_list.unwrap());
