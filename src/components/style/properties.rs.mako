@@ -433,6 +433,13 @@ pub mod longhands {
                 Some(Content(content))
             }
     </%self:longhand>
+
+    // 12.5 Lists
+    ${new_style_struct("List")}
+    ${single_keyword("list-style-type", "disc circle square decimal decimal-leading-zero lower-roman upper-roman lower-greek lower-latin upper-latin armenian georgian lower-alpha upper-alpha none", inherited=True)}
+    ${single_keyword("list-style-position", "outside inside", inherited=True)}
+    ${single_keyword("list-style-image", "none", inherited=True)} // TODO url(image.jpg)
+
     // CSS 2.1, Section 13 - Paged media
 
     // CSS 2.1, Section 14 - Colors and Backgrounds
@@ -764,6 +771,39 @@ pub mod shorthands {
         </%self:shorthand>
     </%def>
 
+    // 12 - Generated content, automatic numbering, and lists
+    <%self:shorthand name="list-style" sub_properties="list-style-type list-style-position
+                                                       list-style-image">
+            let mut iter = input.skip_whitespace();
+            let mut style_type = None;
+            let mut style_position = None;
+            let mut style_image = None;
+            for component_value in iter {
+                if style_type.is_none() {
+                    match list_style_type::from_component_value(component_value) {
+                        Some(s) => { style_type = Some(s); continue },
+                        None => ()
+                    }
+                }
+                if style_position.is_none() {
+                    match list_style_position::from_component_value(component_value) {
+                        Some(w) => { style_position = Some(w); continue },
+                        None => ()
+                    }
+                }
+                if style_image.is_none() {
+                    match list_style_image::from_component_value(component_value) {
+                        Some(v) => { style_image = Some(v); continue },
+                        None => ()
+                    }
+                }
+            }
+            Some(Longhands {
+                list_style_type: style_type,
+                list_style_position: style_position,
+                list_style_image: style_image
+            })
+    </%self:shorthand>
 
     // TODO: other background-* properties
     <%self:shorthand name="background" sub_properties="background-color">
