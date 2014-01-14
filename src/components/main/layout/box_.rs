@@ -22,6 +22,7 @@ use servo_net::local_image_cache::LocalImageCache;
 use servo_util::geometry::Au;
 use servo_util::geometry;
 use servo_util::range::*;
+
 use std::cast;
 use std::cell::RefCell;
 use std::cmp::ApproxEq;
@@ -925,10 +926,14 @@ impl Box {
             return;
         }
 
+        let listdata = flow::base(flow).listdata.unwrap();
+        let convert = builder.numbers;
+        let text = convert.to_list_style_type(listdata.list_style_type, listdata.sequence);
+
         let color = self.style().Color.color.to_gfx_color();
         let font_style = self.font_style();
         let fontgroup = (builder.ctx.font_ctx).get_resolved_font_for_style(&font_style);
-        let text = RefCell::new(listdata.sequence.to_str() + ".\u2009");
+        let text = RefCell::new(text);
         let run = ~fontgroup.borrow().with(|fg| fg.create_textrun(text.get(), text_decoration::none));
         let text_range = Range::new(0, text.get().len());
         let text_bounds = run.metrics_for_range(&text_range).bounding_box;
@@ -957,6 +962,7 @@ impl Box {
 
             list.append_item(TextDisplayItemClass(text_display_item))
         });
+
     }
     /// Returns the *minimum width* and *preferred width* of this box as defined by CSS 2.1.
     pub fn minimum_and_preferred_widths(&self) -> (Au, Au) {

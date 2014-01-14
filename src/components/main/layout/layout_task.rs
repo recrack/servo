@@ -18,6 +18,7 @@ use layout::flow;
 use layout::incremental::{RestyleDamage};
 use layout::util::{LayoutDataAccess, OpaqueNode, LayoutDataWrapper};
 use layout::wrapper::LayoutNode;
+use layout::converter_util;
 
 use extra::arc::{Arc, RWArc, MutexArc};
 use geom::point::Point2D;
@@ -45,6 +46,7 @@ use servo_util::geometry::Au;
 use servo_util::time::{ProfilerChan, profile};
 use servo_util::time;
 use servo_util::task::spawn_named;
+
 use std::cast::transmute;
 use std::cast;
 use std::cell::RefCell;
@@ -483,7 +485,7 @@ impl LayoutTask {
                 let dirty = flow::base(layout_root).position.clone();
                 let display_list_builder = DisplayListBuilder {
                     ctx: &mut layout_ctx,
-                    numbers: &converter::Numbers::new(),
+                    numbers: &converter_util::Numbers::new(),
                 };
                 layout_root.build_display_list(&display_list_builder, &dirty, display_list);
 
