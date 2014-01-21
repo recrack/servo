@@ -133,6 +133,23 @@ fn to_greek(number: int) -> ~str {
     return result;
 }
 
+#[test]
+fn test_upper_alphabet() {
+    assert_eq!(to_alphabet(742, 'A' as int), ~"ABN");   
+}
+
+#[test]
+fn test_lower_alphabet() {
+    assert_eq!(to_alphabet(742, 'a' as int), ~"abn");   
+}
+
+#[test]
+fn test_lower_greek() {
+    assert_eq!(to_greek(25), ~"\u03b1\u03b1");
+    assert_eq!(to_greek(26), ~"\u03b1\u03b2");
+    assert_eq!(to_greek(641), ~"\u03b1\u03b2\u03c1");   
+}
+
 pub struct Numbers {
 	roman: RomanNumber,
 }
