@@ -100,6 +100,39 @@ fn init_lower_roman() -> HashMap<int, ~str> {
     return map;
 }
 
+/// to upper, lower alphabet
+/// caps: 'A' or 'a'
+fn to_alphabet(number: int, caps: int) -> ~str {
+    let mut result = ~"";
+    let mut number = number;
+    while number != 0 {
+        let ch = ((number - 1) % 26 + caps) as u8;
+        result = ch.to_ascii().to_char().to_str() + result;
+        number = (number - 1) / 26;
+    }
+
+    return result;
+}
+
+/// lower greeks
+fn to_greek(number: int) -> ~str {
+    // 03C2 unicode is not used.
+    let  greeks = ~['\u03B1','\u03B2','\u03B3','\u03B4','\u03B5',
+                   '\u03B6','\u03B7','\u03B8','\u03B9','\u03BA',
+                   '\u03BB','\u03BC','\u03BD','\u03BE','\u03BF',
+                   '\u03C0','\u03C1',/*'\u03C2',*/'\u03C3','\u03C4',
+                   '\u03C5','\u03C6','\u03C7','\u03C8','\u03C9'];
+
+    let mut result = ~"";
+    let mut number = number;
+    while number != 0 {
+        let ch = (number - 1) % 24;
+        result = greeks[ch].to_str() + result;  
+        number = (number - 1) / 24;
+    }
+    return result;
+}
+
 pub struct Numbers {
 	roman: RomanNumber,
 }
@@ -155,23 +188,23 @@ impl Numbers {
 	pub fn to_lower_roman(&self, number: int) -> ~str {
 		self.roman.to_lower(number)		
 	}
-	pub fn to_upper_alpha(&self, _number: int) -> ~str {
-        fail!("TODO: upper-alpha");
+	pub fn to_upper_alpha(&self, number: int) -> ~str {
+        to_alphabet(number, 'A' as int)
 	}
-	pub fn to_lower_alpha(&self, _number: int) -> ~str {
-        fail!("TODO: lower-alpha");
+	pub fn to_lower_alpha(&self, number: int) -> ~str {
+        to_alphabet(number, 'a' as int)
 	}
-	pub fn to_upper_latin(&self, _number: int) -> ~str {
-        fail!("TODO: upper-latin");
+	pub fn to_upper_latin(&self, number: int) -> ~str {
+        self.to_upper_alpha(number)
 	}
-	pub fn to_lower_latin(&self, _number: int) -> ~str {
-        fail!("TODO: lower-latin");
+	pub fn to_lower_latin(&self, number: int) -> ~str {
+        self.to_lower_alpha(number)
 	}
 	pub fn to_upper_greek(&self, _number: int) -> ~str {
 		fail!("there is no upper-greek property");
 	}
-	pub fn to_lower_greek(&self, _number: int) -> ~str {
-		fail!("TODO: lower-greek");
+	pub fn to_lower_greek(&self, number: int) -> ~str {
+        to_greek(number)
 	}
 	pub fn to_armenian(&self, _number: int) -> ~str {
 		fail!("TODO: armenian");
