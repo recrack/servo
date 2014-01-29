@@ -1,0 +1,27 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+ <head>
+  <title>The Second Acid Test</title>
+  <style type="text/css">
+   /* section numbers refer to CSS2.1 */
+
+   /* page setup */
+   html { font: 12px sans-serif; margin: 0; padding: 0; overflow: hidden; /* hides scrollbars on viewport, see 11.1.1:3 */ background: white; color: red; }
+   body { margin: 0; padding: 0; }
+
+   .picture { position: relative; border: 1em solid transparent; margin: 0 0 100em 3em; } /* containing block for face */
+   .picture { background: red; } /* overriden by preferred stylesheet below */
+
+  /* second line of face: attribute selectors, float positioning */
+   [class~=one].first.one { position: absolute; top: 0; margin: 36px 0 0 60px; padding: 0; border: black 2em; border-style: none solid; /* shrink wraps around float */ }
+   [class~=one][class~=first] [class=second\ two][class="second two"] { float: right; width: 48px; height: 12px; background: yellow; margin: 0; padding: 0; } /* only content of abs pos block */
+
+  </style>
+  <link rel="appendix stylesheet" href="data:text/css,.picture%20%7B%20background%3A%20none%3B%20%7D"> <!-- this stylesheet should be applied by default -->
+ </head>
+  <body>
+    <div class="picture">
+    <blockquote class="first one"><address class="second two"></address></blockquote>
+    </div>
+  </body>
+</body>
