@@ -439,8 +439,32 @@ pub mod longhands {
 
     ${new_style_struct("Background")}
 
+    // inherited is False
     ${predefined_type("background-color", "CSSColor",
                       "RGBA(RGBA { red: 0., green: 0., blue: 0., alpha: 0. }) /* transparent */")}
+
+    <%self:single_component_value name="background-image">
+
+            // The computed value is the same as the specified value.
+            pub use to_computed_value = super::computed_as_specified;
+            pub mod computed_value {
+                #[deriving(Eq, Clone)]
+                pub enum T {
+                    URL(~str),
+                    none
+                }
+            }
+            pub type SpecifiedValue = computed_value::T;
+            #[inline] pub fn get_initial_value() -> computed_value::T {
+                none
+            }
+            pub fn from_component_value(component_value: &ComponentValue) -> Option<SpecifiedValue> {
+                match component_value {
+                    &ast::URL(ref value) => { Some(URL(value.to_owned())) },
+                    _ => None,
+                }
+            }
+    </%self:single_component_value>
 
 
     ${new_style_struct("Color")}
@@ -766,12 +790,32 @@ pub mod shorthands {
         </%self:shorthand>
     </%def>
 
+    // TODO: background-position, background-attachment
+    <%self:shorthand name="background" sub_properties="background-color background-image">
+        let mut color = None;
+        let mut image = None;
 
-    // TODO: other background-* properties
-    <%self:shorthand name="background" sub_properties="background-color">
-        one_component_value(input).and_then(specified::CSSColor::parse).map(|color| {
-            Longhands { background_color: Some(color) }
+        for component_value in input.skip_whitespace() {
+            if color.is_none() {
+                match background_color::from_component_value(component_value) {
+                    Some(v) => { color = Some(v); continue },
+                    None => ()
+                }
+            }
+
+            if image.is_none() {
+                match background_image::from_component_value(component_value) {
+                    Some(v) => { image = Some(v); continue },
+                    None => (),
+                }
+            }
+        }
+
+        Some(Longhands {
+            background_color: color,
+            background_image: image,
         })
+
     </%self:shorthand>
 
     ${four_sides_shorthand("margin", "margin-%s", "margin_top::from_component_value")}
