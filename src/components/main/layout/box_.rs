@@ -23,6 +23,8 @@ use servo_util::geometry::Au;
 use servo_util::geometry;
 use servo_util::range::*;
 use servo_util::namespace;
+use servo_util::url::make_url;
+
 use std::cast;
 use std::cell::RefCell;
 use std::cmp::ApproxEq;
@@ -31,6 +33,8 @@ use style::{ComputedValues, TElement, TNode};
 use style::computed_values::{LengthOrPercentage, LengthOrPercentageOrAuto, overflow, LPA_Auto};
 use style::computed_values::{border_style, clear, font_family, line_height, position};
 use style::computed_values::{text_align, text_decoration, vertical_align, visibility, white_space};
+use style::computed_values::background_image;
+
 
 use css::node_style::StyledNode;
 use layout::context::LayoutContext;
@@ -41,6 +45,7 @@ use layout::flow;
 use layout::model::{MaybeAuto, specified, Auto, Specified};
 use layout::util::OpaqueNode;
 use layout::wrapper::{TLayoutNode, ThreadSafeLayoutNode};
+
 
 /// Boxes (`struct Box`) are the leaves of the layout tree. They cannot position themselves. In
 /// general, boxes do not have a simple correspondence with CSS boxes in the specification:
@@ -902,7 +907,8 @@ impl Box {
                                           &self,
                                           index: uint,
                                           lists: &RefCell<DisplayListCollection<E>>,
-                                          absolute_bounds: &Rect<Au>) {
+                                          absolute_bounds: &Rect<Au>,
+                                          layout_context: &LayoutContext) {
         // FIXME: This causes a lot of background colors to be displayed when they are clearly not
         // needed. We could use display list optimization to clean this up, but it still seems
         // inefficient. What we really want is something like "nearest ancestor element that
@@ -920,7 +926,62 @@ impl Box {
                 };
 
                 lists.lists[index].append_item(SolidColorDisplayItemClass(solid_color_display_item))
-            });
+            }); 
+        }
+
+        // Support backgrond-image property
+        // covered: URL("") and URL("foo.png")
+        match self.style().Background.background_image {
+            background_image::URL(ref url) => {
+                if !url.is_empty() {
+                    let image_url = make_url(url.as_slice(), None);
+                    let mut holder = ImageHolder::new(image_url, layout_context.image_cache.clone());
+                    match holder.get_image() {
+                        Some(image) => {
+                            debug!("(building display list) building background image");
+
+                            // Place the image into the display list.
+                            lists.with_mut(|lists| {
+                                let image_display_item = ~ImageDisplayItem {
+                                    base: BaseDisplayItem {
+                                        bounds: *absolute_bounds,
+                                        extra: ExtraDisplayListData::new(self),
+                                    },
+                                    image: image.clone(),
+                                };
+                                lists.lists[index].append_item(ImageDisplayItemClass(image_display_item));
+                            });
+                        }
+                        None => {
+                            // No image data at all? Do nothing.
+                            //
+                            // TODO: Add some kind of placeholder image.
+                            debug!("(building display list) no image :(");
+                        }
+                    }
+
+                    // FIXME(pcwalton): This is a bit of an abuse of the logging infrastructure. We
+                    // should have a real `SERVO_DEBUG` system.
+                    debug!("{:?}", {
+                        let debug_border = SideOffsets2D::new_all_same(Au::from_px(1));
+
+                        lists.with_mut(|lists| {
+                            let border_display_item = ~BorderDisplayItem {
+                                base: BaseDisplayItem {
+                                    bounds: *absolute_bounds,
+                                    extra: ExtraDisplayListData::new(self),
+                                },
+                                border: debug_border,
+                                color: SideOffsets2D::new_all_same(rgb(0, 0, 200)),
+                                style: SideOffsets2D::new_all_same(border_style::solid)
+
+                            };
+                            lists.lists[index].append_item(BorderDisplayItemClass(border_display_item))
+                        });
+                    });
+                }
+            }
+            background_image::none => {}
         }
     }
 
@@ -1015,7 +1076,7 @@ impl Box {
 
         self.paint_inline_background_border_if_applicable(index, lists, &absolute_box_bounds, &offset);
         // Add the background to the list, if applicable.
-        self.paint_background_if_applicable(index, lists, &absolute_box_bounds);
+        self.paint_background_if_applicable(index, lists, &absolute_box_bounds, builder.ctx);
 
         match self.specific {
             UnscannedTextBox(_) => fail!("Shouldn't see unscanned boxes here."),
@@ -1222,7 +1283,6 @@ impl Box {
         //
         // TODO: Outlines.
         self.paint_borders_if_applicable(index, lists, &absolute_box_bounds);
-
     }
 
     /// Returns the *minimum width* and *preferred width* of this box as defined by CSS 2.1.
