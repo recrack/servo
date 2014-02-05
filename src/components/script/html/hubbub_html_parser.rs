@@ -341,10 +341,14 @@ pub fn parse_html(cx: *JSContext,
                     node.with_imm_element(|element| {
                         match (element.get_attribute(Null, "rel"), element.get_attribute(Null, "href")) {
                             (Some(rel), Some(href)) => {
-                                if "stylesheet" == rel.value_ref() {
-                                    debug!("found CSS stylesheet: {:s}", href.value_ref());
-                                    let url = make_url(href.Value(), Some(url2.clone()));
-                                    css_chan2.send(CSSTaskNewFile(UrlProvenance(url)));
+                                // TODO: fully support Link types.
+                                let rel: ~[&str] = rel.value_ref().rsplit(' ').collect();
+                                for v in rel.iter() {
+                                    if "stylesheet" == *v {
+                                        debug!("found CSS stylesheet: {:s}", href.value_ref());
+                                        let url = make_url(href.Value(), Some(url2.clone()));
+                                        css_chan2.send(CSSTaskNewFile(UrlProvenance(url)));
+                                    }
                                 }
                             }
                             _ => {}
