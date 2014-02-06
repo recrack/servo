@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use extra::arc::Arc;
+use extra::url::Url;
 use std::ascii::StrAsciiExt;
 use std::hashmap::HashMap;
 use std::str;
@@ -11,6 +12,7 @@ use std::to_bytes;
 use servo_util::namespace;
 use servo_util::smallvec::{SmallVec, SmallVec16};
 use servo_util::sort;
+
 
 use media_queries::{Device, Screen};
 use node::{TElement, TNode};
@@ -294,6 +296,7 @@ pub struct Stylist {
     priv before_map: PerPseudoElementSelectorMap,
     priv after_map: PerPseudoElementSelectorMap,
     priv rules_source_order: uint,
+    priv base_url: Option<Url>,
 }
 
 impl Stylist {
@@ -304,10 +307,19 @@ impl Stylist {
             before_map: PerPseudoElementSelectorMap::new(),
             after_map: PerPseudoElementSelectorMap::new(),
             rules_source_order: 0u,
+            base_url: None
         }
     }
 
+    pub fn get_base_url(&self) -> Option<Url> {
+        return self.base_url.clone();
+    }
+
     pub fn add_stylesheet(&mut self, stylesheet: Stylesheet, origin: StylesheetOrigin) {
+
+        // base url
+        self.base_url = Some(stylesheet.base_url.clone());
+
         let (mut element_map, mut before_map, mut after_map) = match origin {
             UserAgentOrigin => (
                 &mut self.element_map.user_agent,

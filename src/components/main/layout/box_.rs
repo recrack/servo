@@ -29,6 +29,8 @@ use std::cast;
 use std::cell::RefCell;
 use std::cmp::ApproxEq;
 use std::num::Zero;
+
+use style::Stylist;
 use style::{ComputedValues, TElement, TNode};
 use style::computed_values::{LengthOrPercentage, LengthOrPercentageOrAuto, overflow, LPA_Auto};
 use style::computed_values::{border_style, clear, font_family, line_height, position};
@@ -45,8 +47,6 @@ use layout::flow;
 use layout::model::{MaybeAuto, specified, Auto, Specified};
 use layout::util::OpaqueNode;
 use layout::wrapper::{TLayoutNode, ThreadSafeLayoutNode};
-
-
 /// Boxes (`struct Box`) are the leaves of the layout tree. They cannot position themselves. In
 /// general, boxes do not have a simple correspondence with CSS boxes in the specification:
 ///
@@ -929,12 +929,14 @@ impl Box {
             }); 
         }
 
-        // Support backgrond-image property
+        // Support backgrond-image property 
         // covered: URL("") and URL("foo.png")
         match self.style().Background.background_image {
             background_image::URL(ref url) => {
-                if !url.is_empty() {
-                    let image_url = make_url(url.as_slice(), None);
+                unsafe {
+                    let stylist: &Stylist = cast::transmute(layout_context.stylist);
+                    let image_url = make_url(url.as_slice(), stylist.get_base_url());
+
                     let mut holder = ImageHolder::new(image_url, layout_context.image_cache.clone());
                     match holder.get_image() {
                         Some(image) => {
