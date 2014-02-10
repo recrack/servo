@@ -11,14 +11,22 @@ use dom::node::{AbstractNode, Node};
 use dom::validitystate::ValidityState;
 use dom::windowproxy::WindowProxy;
 
+use extra::url::Url;
+use servo_net::image_cache_task;
+use servo_net::image_cache_task::ImageCacheTask;
+use servo_util::url::parse_url;
+use servo_util::namespace::Null;
+
 pub struct HTMLObjectElement {
-    htmlelement: HTMLElement
+    htmlelement: HTMLElement,
+    data: Option<Url>,
 }
 
 impl HTMLObjectElement {
     pub fn new_inherited(localName: DOMString, document: AbstractDocument) -> HTMLObjectElement {
         HTMLObjectElement {
-            htmlelement: HTMLElement::new_inherited(HTMLObjectElementTypeId, localName, document)
+            htmlelement: HTMLElement::new_inherited(HTMLObjectElementTypeId, localName, document),
+            data: None
         }
     }
 
@@ -29,6 +37,47 @@ impl HTMLObjectElement {
 }
 
 impl HTMLObjectElement {
+
+    // Makes the local `data` member match the status of the `data` attribute and starts
+    /// prefetching the image. This method must be called after `data` is changed.
+    pub fn update_data(&mut self, image_cache: ImageCacheTask, url: Option<Url>) {
+        let elem = &mut self.htmlelement.element;
+
+        // TODO: support other values
+        match (elem.get_attribute(Null, "type").map(|x| x.Value()), elem.get_attribute(Null, "data").map(|x| x.Value())) {
+            (None, Some(data)) => {
+                if data.starts_with("data:image/png") {
+                    let data_url = parse_url(data, url);
+                    self.data = Some(data_url.clone());
+
+                    // Issue #84
+                    image_cache.send(image_cache_task::Prefetch(data_url));
+                }
+            }
+            (_,_) => { }
+        }
+    }
+
+    pub fn AfterSetAttr(&mut self, name: DOMString, _value: DOMString) {
+        if "data" == name {
+            let document = self.htmlelement.element.node.owner_doc();
+            let window = document.document().window;
+            let url = window.page.url.as_ref().map(|&(ref url, _)| url.clone());
+            self.update_data(window.image_cache_task.clone(), url);
+        }
+    }
+
+    pub fn AfterRemoveAttr(&mut self, name: DOMString) {
+        // FIXME (#1469):
+        // This might not handle remove src attribute actually since
+        // `self.update_data()` will see the missing src attribute and return early.
+        if "data" == name {
+            let document = self.htmlelement.element.node.owner_doc();
+            let window = document.document().window;
+            self.update_data(window.image_cache_task.clone(), None);
+        }
+    }
+
     pub fn Data(&self) -> DOMString {
         ~""
     }
