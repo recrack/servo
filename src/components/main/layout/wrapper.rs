@@ -19,6 +19,7 @@ use script::dom::element::{Element, HTMLAreaElementTypeId, HTMLAnchorElementType
 use script::dom::element::{HTMLLinkElementTypeId};
 use script::dom::htmliframeelement::HTMLIFrameElement;
 use script::dom::htmlimageelement::HTMLImageElement;
+use script::dom::htmlobjectelement::HTMLObjectElement;
 use script::dom::node::{AbstractNode, DocumentNodeTypeId, ElementNodeTypeId, Node, NodeTypeId};
 use script::dom::text::Text;
 use servo_msg::constellation_msg::{PipelineId, SubpageId};
@@ -76,6 +77,17 @@ pub trait TLayoutNode {
         }
     }
 
+    /// If this is an object element, returns its URL. If this is not an object element, fails.
+    ///
+    /// FIXME(pcwalton): Don't copy URLs.
+    fn object_data(&self) -> Option<Url> {
+        unsafe {
+            self.with_object_element(|object_element| {
+                object_element.data.as_ref().map(|data| (*data).clone())
+            })
+        }
+    }
+
     /// Downcasts this node to an iframe element and calls the given closure.
     ///
     /// FIXME(pcwalton): RAII.
@@ -91,6 +103,16 @@ pub trait TLayoutNode {
     /// FIXME(pcwalton): RAII.
     unsafe fn with_image_element<R>(&self, f: |&HTMLImageElement| -> R) -> R {
         if !self.get_abstract().is_image_element() {
+            fail!(~"node is not an image element");
+        }
+        self.get_abstract().transmute(f)
+    }
+
+    /// Downcasts this node to an image element and calls the given closure.
+    ///
+    /// FIXME(pcwalton): RAII.
+    unsafe fn with_object_element<R>(&self, f: |&HTMLObjectElement| -> R) -> R {
+        if !self.get_abstract().is_object_element() {
             fail!(~"node is not an image element");
         }
         self.get_abstract().transmute(f)

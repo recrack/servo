@@ -34,13 +34,14 @@ use layout::util::{LayoutDataAccess, OpaqueNode};
 use layout::wrapper::{PostorderNodeMutTraversal, TLayoutNode, ThreadSafeLayoutNode};
 
 use gfx::font_context::FontContext;
-use script::dom::element::{HTMLIframeElementTypeId, HTMLImageElementTypeId};
+use script::dom::element::{HTMLIframeElementTypeId, HTMLImageElementTypeId, HTMLObjectElementTypeId};
 use script::dom::node::{CommentNodeTypeId, DoctypeNodeTypeId, DocumentFragmentNodeTypeId};
 use script::dom::node::{DocumentNodeTypeId, ElementNodeTypeId, ProcessingInstructionNodeTypeId};
 use script::dom::node::{TextNodeTypeId};
 use style::computed_values::{display, position, float, white_space};
 use style::ComputedValues;
 
+use extra::url::Url;
 use extra::arc::Arc;
 use std::cell::RefCell;
 use std::util;
@@ -241,9 +242,9 @@ impl<'fc> FlowConstructor<'fc> {
     }
 
     /// Builds the `ImageBoxInfo` for the given image. This is out of line to guide inlining.
-    fn build_box_info_for_image(&mut self, node: ThreadSafeLayoutNode) -> Option<ImageBoxInfo> {
+    fn build_box_info_for_image(&mut self, node: ThreadSafeLayoutNode, url: Option<Url>) -> Option<ImageBoxInfo> {
         // FIXME(pcwalton): Don't copy URLs.
-        match node.image_url() {
+        match url {
             None => None,
             Some(url) => {
                 // FIXME(pcwalton): The fact that image boxes store the cache within them makes
@@ -258,12 +259,18 @@ impl<'fc> FlowConstructor<'fc> {
                                             -> SpecificBoxInfo {
         match node.type_id() {
             ElementNodeTypeId(HTMLImageElementTypeId) => {
-                match self.build_box_info_for_image(node) {
+                match self.build_box_info_for_image(node, node.image_url()) {
                     None => GenericBox,
                     Some(image_box_info) => ImageBox(image_box_info),
                 }
             }
             ElementNodeTypeId(HTMLIframeElementTypeId) => IframeBox(IframeBoxInfo::new(&node)),
+            ElementNodeTypeId(HTMLObjectElementTypeId) => {
+                match self.build_box_info_for_image(node, node.object_data()) {
+                    None => GenericBox,
+                    Some(image_box_info) => ImageBox(image_box_info),
+                }
+            }
             TextNodeTypeId => UnscannedTextBox(UnscannedTextBoxInfo::new(&node)),
             _ => GenericBox,
         }
@@ -709,6 +716,7 @@ impl<'ln> NodeUtils for ThreadSafeLayoutNode<'ln> {
             DocumentFragmentNodeTypeId |
             DocumentNodeTypeId(_) |
             ElementNodeTypeId(HTMLImageElementTypeId) => true,
+            ElementNodeTypeId(HTMLObjectElementTypeId) => self.object_data().is_some(),
             ElementNodeTypeId(_) => false,
         }
     }

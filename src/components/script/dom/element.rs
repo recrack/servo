@@ -246,6 +246,11 @@ impl Element {
                     iframe.AfterSetAttr(local_name.clone(), value.clone());
                 });
             }
+            ElementNodeTypeId(HTMLObjectElementTypeId) => {
+                abstract_self.with_mut_object_element(|object| {
+                    object.AfterSetAttr(local_name.clone(), value.clone());
+                });
+            }
             _ => ()
         }
 
@@ -308,6 +313,11 @@ impl Element {
             ElementNodeTypeId(HTMLIframeElementTypeId) => {
                 abstract_self.with_mut_iframe_element(|iframe| {
                     iframe.AfterRemoveAttr(local_name.clone());
+                });
+            }
+            ElementNodeTypeId(HTMLObjectElementTypeId) => {
+                abstract_self.with_mut_object_element(|object| {
+                    object.AfterRemoveAttr(local_name.clone());
                 });
             }
             _ => ()
