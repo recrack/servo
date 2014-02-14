@@ -716,7 +716,22 @@ impl<'ln> NodeUtils for ThreadSafeLayoutNode<'ln> {
             DocumentFragmentNodeTypeId |
             DocumentNodeTypeId(_) |
             ElementNodeTypeId(HTMLImageElementTypeId) => true,
-            ElementNodeTypeId(HTMLObjectElementTypeId) => self.object_data().is_some(),
+            ElementNodeTypeId(HTMLObjectElementTypeId) => {
+               // self.object_data().is_some()
+
+            self.with_element(|element| {
+                 element.get_attr(&namespace::Null, name).and_then(|string| {
+                 //    let n: Option<int> = FromStr::from_str(string);
+                  //   n
+                 //}).and_then(|pixels| Some(Au::from_px(pixels)))
+             })
+                 
+            false
+             //   self.with_object_element(|object_element| {
+             //       object_element.data.as_ref().map(|data| (*data).clone())
+             //   })
+
+            },
             ElementNodeTypeId(_) => false,
         }
     }
